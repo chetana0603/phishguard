@@ -1,0 +1,168 @@
+{
+  "model_version": "rule-baseline-v1",
+  "validation_rows": 47030,
+  "target_convention": {
+    "0": "legitimate",
+    "1": "phishing"
+  },
+  "locked_test_used": false,
+  "cost_assumptions": {
+    "false_negative": 25.0,
+    "false_positive": 2.0,
+    "true_positive": 0.0,
+    "true_negative": 0.0
+  },
+  "timing": {
+    "total_seconds": 3.7789566999999806,
+    "milliseconds_per_url": 0.0803520455028701,
+    "urls_per_second": 12445.233892201051
+  },
+  "profiles": {
+    "high_security": {
+      "name": "high_security",
+      "description": "Maximise phishing recall while keeping FPR at or below 5% and precision at or above 70%.",
+      "threshold": 0.01,
+      "metrics": {
+        "threshold": 0.01,
+        "n_samples": 47030,
+        "true_positive": 12939,
+        "false_positive": 440,
+        "true_negative": 26530,
+        "false_negative": 7121,
+        "precision": 0.9671126392107033,
+        "recall": 0.6450149551345962,
+        "specificity": 0.9836855765665554,
+        "false_positive_rate": 0.016314423433444566,
+        "f1": 0.7738867789108526,
+        "accuracy": 0.8392302785456092,
+        "predicted_positive_rate": 0.28447799277057195,
+        "average_precision": 0.7745391180964103,
+        "roc_auc": 0.8119937175865802,
+        "brier_score": 0.39844778864554536,
+        "expected_calibration_error": 0.4104709759727833,
+        "simulated_cost": 178905.0,
+        "simulated_cost_per_10000": 38040.612375079734
+      },
+      "constraints_met": true,
+      "selection_note": "Selected from thresholds satisfying FPR <= 5% and precision >= 70%."
+    },
+    "balanced": {
+      "name": "balanced",
+      "description": "Minimise simulated cost while keeping FPR at or below 5%, precision at or above 70%, and recall at or above 50%.",
+      "threshold": 0.01,
+      "metrics": {
+        "threshold": 0.01,
+        "n_samples": 47030,
+        "true_positive": 12939,
+        "false_positive": 440,
+        "true_negative": 26530,
+        "false_negative": 7121,
+        "precision": 0.9671126392107033,
+        "recall": 0.6450149551345962,
+        "specificity": 0.9836855765665554,
+        "false_positive_rate": 0.016314423433444566,
+        "f1": 0.7738867789108526,
+        "accuracy": 0.8392302785456092,
+        "predicted_positive_rate": 0.28447799277057195,
+        "average_precision": 0.7745391180964103,
+        "roc_auc": 0.8119937175865802,
+        "brier_score": 0.39844778864554536,
+        "expected_calibration_error": 0.4104709759727833,
+        "simulated_cost": 178905.0,
+        "simulated_cost_per_10000": 38040.612375079734
+      },
+      "constraints_met": true,
+      "selection_note": "Selected by minimum simulated cost among thresholds satisfying FPR <= 5%, precision >= 70%, and recall >= 50%."
+    },
+    "conservative": {
+      "name": "conservative",
+      "description": "Maximise precision while keeping FPR at or below 1% and recall at or above 10%.",
+      "threshold": 0.07,
+      "metrics": {
+        "threshold": 0.07,
+        "n_samples": 47030,
+        "true_positive": 3702,
+        "false_positive": 103,
+        "true_negative": 26867,
+        "false_negative": 16358,
+        "precision": 0.9729303547963206,
+        "recall": 0.18454636091724824,
+        "specificity": 0.996180941787171,
+        "false_positive_rate": 0.003819058212829069,
+        "f1": 0.31024512884978,
+        "accuracy": 0.649989368488199,
+        "predicted_positive_rate": 0.08090580480544333,
+        "average_precision": 0.7745391180964103,
+        "roc_auc": 0.8119937175865802,
+        "brier_score": 0.39844778864554536,
+        "expected_calibration_error": 0.4104709759727833,
+        "simulated_cost": 409156.0,
+        "simulated_cost_per_10000": 86998.93684881991
+      },
+      "constraints_met": true,
+      "selection_note": "Selected from thresholds satisfying FPR <= 1% and recall >= 10%."
+    }
+  },
+  "top_triggered_rules": [
+    {
+      "rule": "not_https",
+      "count": 10690
+    },
+    {
+      "rule": "moderate_digit_ratio",
+      "count": 1731
+    },
+    {
+      "rule": "deep_hostname",
+      "count": 897
+    },
+    {
+      "rule": "suspicious_hostname_term",
+      "count": 706
+    },
+    {
+      "rule": "suspicious_path_term",
+      "count": 704
+    },
+    {
+      "rule": "many_hostname_hyphens",
+      "count": 582
+    },
+    {
+      "rule": "high_digit_ratio",
+      "count": 383
+    },
+    {
+      "rule": "many_special_characters",
+      "count": 323
+    },
+    {
+      "rule": "many_hostname_levels",
+      "count": 273
+    },
+    {
+      "rule": "multiple_suspicious_path_terms",
+      "count": 260
+    },
+    {
+      "rule": "long_url",
+      "count": 244
+    },
+    {
+      "rule": "long_query",
+      "count": 227
+    },
+    {
+      "rule": "very_long_url",
+      "count": 213
+    },
+    {
+      "rule": "url_shortener",
+      "count": 166
+    },
+    {
+      "rule": "ip_hostname",
+      "count": 136
+    }
+  ]
+}

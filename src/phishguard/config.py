@@ -11,6 +11,8 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 
 REPORTS_DIR = PROJECT_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
+BASELINE_REPORTS_DIR = REPORTS_DIR / "baselines"
+RULE_BASELINE_REPORT_DIR = BASELINE_REPORTS_DIR / "rule_baseline"
 
 RAW_DATA_PATH = RAW_DATA_DIR / "phiusiil_raw.parquet"
 RAW_METADATA_PATH = RAW_DATA_DIR / "phiusiil_metadata.json"
@@ -38,5 +40,7 @@ def ensure_directories() -> None:
         PROCESSED_DATA_DIR,
         REPORTS_DIR,
         FIGURES_DIR,
+        BASELINE_REPORTS_DIR,
+        RULE_BASELINE_REPORT_DIR,
     ):
         directory.mkdir(parents=True, exist_ok=True)

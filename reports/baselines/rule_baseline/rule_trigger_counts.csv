@@ -1,0 +1,16 @@
+rule,count
+not_https,10690
+moderate_digit_ratio,1731
+deep_hostname,897
+suspicious_hostname_term,706
+suspicious_path_term,704
+many_hostname_hyphens,582
+high_digit_ratio,383
+many_special_characters,323
+many_hostname_levels,273
+multiple_suspicious_path_terms,260
+long_url,244
+long_query,227
+very_long_url,213
+url_shortener,166
+ip_hostname,136
