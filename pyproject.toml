@@ -44,6 +44,9 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["phishguard"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
