@@ -20,7 +20,8 @@ htmlcov/
 !/data/README.md
 
 # Models and experiment artifacts
-models/
+/artifacts/models/*
+!/artifacts/models/.gitkeep
 mlruns/
 artifacts/
 
