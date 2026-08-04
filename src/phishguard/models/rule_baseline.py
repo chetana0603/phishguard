@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Iterable, Sequence
 
 import numpy as np
 
@@ -44,9 +44,7 @@ def _append(
     explanation: str,
 ) -> None:
     if condition:
-        contributions.append(
-            RuleContribution(name=name, weight=weight, explanation=explanation)
-        )
+        contributions.append(RuleContribution(name=name, weight=weight, explanation=explanation))
 
 
 def score_features(features: URLFeatures) -> RulePrediction:
