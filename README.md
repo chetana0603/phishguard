@@ -6,8 +6,8 @@ PhishGuard is a production-oriented phishing URL detection project focused on le
 data preparation, calibrated risk scoring, explainable predictions, rigorous evaluation,
 monitoring, CI/CD, and cloud deployment.
 
-> **Current status:** Phase 2A — transparent URL-rule baseline evaluated on the
-> domain-held-out validation split. The locked test set remains untouched.
+> **Current status:** Phase 2B — character-level TF-IDF and logistic-regression model
+> selection on the domain-held-out validation split. The locked test set remains untouched.
 
 ## Why this project exists
 
@@ -138,11 +138,20 @@ Or run validation, tests, linting, and report generation together:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/run_phase2a.ps1
 ```
+## Run Phase 2B
+```powershell
+uv run python -m phishguard.training.tfidf_logistic
+```
+
+For the optional full 18-configuration search:
+
+```powershell
+uv run python -m phishguard.training.tfidf_logistic --full-grid
+```
 
 Generated outputs are written to `reports/baselines/rule_baseline/`. The locked test split is not
 used during threshold selection.
 
-In the Roadmap section, mark Phase 1 complete and Phase 2A active:
 
 ```markdown
 - **Phase 1:** ✅ Reproducible data foundation
