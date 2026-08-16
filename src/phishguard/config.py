@@ -13,6 +13,12 @@ REPORTS_DIR = PROJECT_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 BASELINE_REPORTS_DIR = REPORTS_DIR / "baselines"
 RULE_BASELINE_REPORT_DIR = BASELINE_REPORTS_DIR / "rule_baseline"
+MODEL_REPORTS_DIR = REPORTS_DIR / "models"
+TFIDF_LOGISTIC_REPORT_DIR = MODEL_REPORTS_DIR / "tfidf_logistic"
+
+ARTIFACTS_DIR = PROJECT_ROOT / "artifacts"
+MODEL_ARTIFACTS_DIR = ARTIFACTS_DIR / "models"
+TFIDF_LOGISTIC_ARTIFACT_DIR = MODEL_ARTIFACTS_DIR / "tfidf_logistic"
 
 RAW_DATA_PATH = RAW_DATA_DIR / "phiusiil_raw.parquet"
 RAW_METADATA_PATH = RAW_DATA_DIR / "phiusiil_metadata.json"
@@ -33,7 +39,7 @@ UCI_DATASET_ID = 967
 
 
 def ensure_directories() -> None:
-    """Create all generated-data and report directories."""
+    """Create all generated-data, report, and artifact directories."""
     for directory in (
         RAW_DATA_DIR,
         INTERIM_DATA_DIR,
@@ -42,5 +48,10 @@ def ensure_directories() -> None:
         FIGURES_DIR,
         BASELINE_REPORTS_DIR,
         RULE_BASELINE_REPORT_DIR,
+        MODEL_REPORTS_DIR,
+        TFIDF_LOGISTIC_REPORT_DIR,
+        ARTIFACTS_DIR,
+        MODEL_ARTIFACTS_DIR,
+        TFIDF_LOGISTIC_ARTIFACT_DIR,
     ):
         directory.mkdir(parents=True, exist_ok=True)

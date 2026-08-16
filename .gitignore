@@ -22,6 +22,7 @@ htmlcov/
 # Models and experiment artifacts
 /artifacts/models/*
 !/artifacts/models/.gitkeep
+/artifacts/models/**/*.joblib
 mlruns/
 artifacts/
 
