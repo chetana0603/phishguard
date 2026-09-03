@@ -14,11 +14,11 @@ The project therefore focuses not only on model performance, but also on:
 - dataset-bias discovery
 - probability calibration
 - operating-threshold selection
-- adversarial-style robustness checks
+- robustness checks
 - external/OOD validation
 - reproducible model freezing
 - tested inference serving
-- containerized deployment
+- containerized local inference
 
 ---
 
@@ -418,15 +418,16 @@ The current automated test suite contains:
 92 passing tests
 ```
 
-The API tests are designed to run without opening network sockets, while
-the actual HTTP service is validated separately through the Dockerized
-application.
+The API unit tests are designed to run without opening network sockets.
+Actual HTTP inference was validated separately through the locally
+running Docker container.
 
 ---
 
 ## Docker
 
-The FastAPI service is packaged in a Linux Docker container.
+The FastAPI service is packaged in a Linux Docker container and has been
+validated locally.
 
 ### Build
 
@@ -448,7 +449,7 @@ docker build -t phishguard-api:v3 .
 docker run --rm -p 8000:8000 phishguard-api:v3
 ```
 
-The API is then available at:
+The locally running API is then available at:
 
 ```text
 http://127.0.0.1:8000
@@ -520,12 +521,12 @@ tracking through `.gitignore`.
 Local Docker builds explicitly include the required frozen artifact in
 the image while excluding unrelated development artifacts.
 
-This keeps raw/model-development artifacts out of the repository while
+This keeps model-development artifacts out of the repository while
 allowing the tested local container to run with the exact frozen V3
 model.
 
-A registry-based model/container distribution strategy can be used for
-cloud deployment.
+A separate artifact or container-registry strategy would be required for
+future cloud deployment. This is not implemented in V3.
 
 ---
 
@@ -669,6 +670,12 @@ Run lint checks:
 uv run ruff check .
 ```
 
+Check formatting:
+
+```powershell
+uv run ruff format --check .
+```
+
 Format Python code:
 
 ```powershell
@@ -677,11 +684,13 @@ uv run ruff format .
 
 ### Run the API without Docker
 
-When local networking permits:
-
 ```powershell
 uv run uvicorn phishguard.api.app:app --host 127.0.0.1 --port 8000
 ```
+
+Depending on the host environment, local socket restrictions may prevent
+Uvicorn from binding directly. The service was therefore also validated
+inside Docker.
 
 ### Run with Docker
 
@@ -726,27 +735,28 @@ It does not use:
 - user context
 - email context
 
-External evaluation also shows measurable distribution shift.
+External evaluation shows measurable distribution shift.
 
-A legitimate SaaS-style URL was also observed to receive a high phishing
-score during containerized smoke testing, providing a qualitative
-example of the same distribution-shift limitation identified during the
-external evaluation.
+During qualitative containerized smoke testing, a legitimate SaaS-style
+URL also received a high phishing score. This provides a concrete example
+of the type of confident false positive that can occur outside the
+development distribution.
 
-The frozen V3 model was not modified in response to this observation.
+The frozen V3 model was not modified or retuned in response to this
+observation because the final test set had already been consumed.
 
-The model should therefore be treated as a screening/risk-scoring
+The model should therefore be treated as a screening or risk-scoring
 component rather than a complete phishing-defense system.
 
-Representative deployment traffic would be required before production
-use.
+Representative deployment traffic and further OOD validation would be
+required before production-facing use.
 
 ---
 
 ## Current Status
 
-**V3 model development, evaluation, and local productization are
-complete.**
+**V3 model development, evaluation, and local inference productization
+are complete.**
 
 ```text
 Model frozen:                  Yes
@@ -762,7 +772,10 @@ Batch prediction endpoint:     Completed
 Automated tests:               92 passed
 Docker image build:            Completed
 Docker health check:           Passed
-Containerized HTTP inference:  Verified
+Containerized HTTP inference:  Verified locally
+
+Public/cloud deployment:       Not performed
+Production deployment:         Not performed
 ```
 
 The V3 test set is now consumed.
@@ -770,5 +783,7 @@ The V3 test set is now consumed.
 Any future changes to preprocessing, model configuration, calibration,
 or threshold will be developed as a new model version.
 
-The next engineering step is deployment of the frozen container image
-through a container registry and hosted runtime.
+The frozen V3 inference service has been validated locally through
+Docker. Public deployment is intentionally deferred because external
+evaluation identified meaningful distribution shift, and representative
+deployment traffic would be required before production-facing use.
