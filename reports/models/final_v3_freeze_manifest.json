@@ -1,0 +1,43 @@
+{
+  "manifest_version": 1,
+  "model_version": "tfidf-logistic-v3-rootcanon",
+  "freeze_status": "frozen_before_locked_test",
+  "git_commit": "9198acad4f81016fba47d57ae74f434880a2d58b",
+  "model": {
+    "path": "artifacts\\models\\calibration_v3_rootcanon\\sigmoid_grouped_cv.joblib",
+    "sha256": "7df6dd6102d37f4d3358db5a7536b48395f1c1f610414e0d9c7c6fcb3463f058",
+    "calibration": "5-fold registered-domain grouped-CV sigmoid"
+  },
+  "decision_threshold": {
+    "value": 0.768113160039295,
+    "source": "Phase 2C-D2 validation threshold matched to rule-baseline FPR",
+    "tuned_on_external_data": false,
+    "locked_before_test": true
+  },
+  "robustness": {
+    "path": "reports\\models\\robustness_v3_rootcanon\\robustness_metrics.json",
+    "sha256": "081594e5b344681b28d572874711b9ecb283e023482c710a29421358a4cc8166",
+    "strict_invariance_passed": true
+  },
+  "external_evaluation": {
+    "dataset_path": "data\\external\\processed\\external_ood_eval_v3_20260903.parquet",
+    "dataset_sha256": "bd077eb9b002c5d9e86abe34f03613d165661500cfd69549742b89520e14452b",
+    "metrics_path": "reports\\models\\external_ood_v3_rootcanon_20260903\\external_ood_metrics.json",
+    "metrics_sha256": "ec493206b8d07e1768fac01bdf4d3754a308048a355ac18d40f026f7d73b03c0",
+    "snapshot": "2026-09-03",
+    "model_retrained_after_results": false,
+    "calibration_changed_after_results": false,
+    "threshold_retuned_after_results": false
+  },
+  "environment": {
+    "python": "3.11.15",
+    "scikit_learn": "1.9.0"
+  },
+  "locked_test": {
+    "registered_domain_used_for_decontamination": true,
+    "urls_used_before_final_evaluation": false,
+    "labels_used_before_final_evaluation": false,
+    "predictions_generated_before_final_evaluation": false,
+    "model_scored_before_final_evaluation": false
+  }
+}

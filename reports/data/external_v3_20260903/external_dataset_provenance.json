@@ -1,0 +1,57 @@
+{
+  "phase": "2C-C1",
+  "created_at_utc": "2026-09-03T08:08:23.427225+00:00",
+  "locked_test_used": false,
+  "locked_test_scored": false,
+  "train_validation_domains": 140405,
+  "tranco_list_id": "manual-20260903",
+  "max_per_class_requested": 30000,
+  "final_rows_per_class": 13077,
+  "final_total_rows": 26154,
+  "target_convention": {
+    "0": "Tranco popular-domain benign proxy",
+    "1": "PhishTank verified-online phishing URL"
+  },
+  "phishtank": {
+    "raw_rows": 74280,
+    "verified_online_rows": 74280,
+    "valid_domain_rows": 74280,
+    "development_domain_overlap_removed": 32382,
+    "duplicate_domain_rows_removed": 28821,
+    "selected_rows": 13077
+  },
+  "tranco": {
+    "raw_rows": 1000000,
+    "valid_domain_rows": 1000000,
+    "development_domain_overlap_removed": 34815,
+    "phishtank_domain_conflicts_removed": 696,
+    "selected_rows": 13077
+  },
+  "source_metadata": {
+    "acquisition": "manual_browser",
+    "snapshot_date": "2026-09-03",
+    "reason": "Python outbound network access previously failed with WinError 10013.",
+    "evaluation_role": "fresh_v3_external_snapshot",
+    "model_frozen_before_snapshot": true,
+    "model_version": "tfidf-logistic-v3-rootcanon"
+  },
+  "input_files": {
+    "phishtank": {
+      "path": "data\\external\\raw\\phishtank_online_valid_20260903.csv",
+      "sha256": "99b02764d115845939a6c6b35de12d05587b5325c031175ebb5500903b83834a"
+    },
+    "tranco": {
+      "path": "data\\external\\raw\\tranco_top1m_20260903.csv",
+      "sha256": "a4e8c113628914dba17224b8361796292586205529389400ec35241574ad0243"
+    }
+  },
+  "output_path": "data\\external\\processed\\external_ood_candidate_v3_20260903.parquet",
+  "output_sha256": "787bb3780f79e34a747f88acf4c34f8668143e8d7cac987891685aac7c66d518",
+  "limitations": [
+    "Tranco is a popular-domain proxy, not perfect benign ground truth.",
+    "Tranco examples are synthesized as https://<domain> root URLs.",
+    "Only one PhishTank URL per registered domain is retained.",
+    "The combined class balance is constructed for diagnostic evaluation and does not represent deployment prevalence.",
+    "The locked internal test set has not been scored or used for model decisions."
+  ]
+}
