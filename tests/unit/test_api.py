@@ -4,12 +4,16 @@ from dataclasses import dataclass
 from typing import Any
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from pydantic import ValidationError
 from starlette.requests import Request
 
 from phishguard.api.app import create_app
-from phishguard.api.schemas import PredictRequest
+from phishguard.api.schemas import (
+    MAX_BATCH_SIZE,
+    BatchPredictRequest,
+    PredictRequest,
+)
 from phishguard.inference import (
     FROZEN_THRESHOLD,
     MODEL_VERSION,
@@ -32,7 +36,7 @@ class FakePrediction:
     ) -> dict[str, str | float | int]:
         return {
             "url": self.url,
-            "phishing_probability": (self.phishing_probability),
+            "phishing_probability": self.phishing_probability,
             "prediction": self.prediction,
             "label": self.label,
             "threshold": self.threshold,
@@ -58,6 +62,13 @@ class FakePredictor:
             threshold=FROZEN_THRESHOLD,
             model_version=MODEL_VERSION,
         )
+
+    def predict_many(
+        self,
+        urls: list[str],
+    ) -> list[FakePrediction]:
+        """Return fake batch predictions."""
+        return [self.predict(url) for url in urls]
 
 
 def _find_endpoint(
@@ -162,12 +173,19 @@ def test_missing_url_rejected() -> None:
         PredictRequest.model_validate({})
 
 
-def test_blank_url_rejected(
+def test_blank_url_rejected() -> None:
+    with pytest.raises(
+        ValidationError,
+    ):
+        PredictRequest(url="   ")
+
+
+def test_batch_predict(
     application: FastAPI,
 ) -> None:
     endpoint = _find_endpoint(
         application,
-        path="/predict",
+        path="/predict/batch",
         method="POST",
     )
 
@@ -178,14 +196,35 @@ def test_blank_url_rejected(
         }
     )
 
-    payload = PredictRequest(url="   ")
+    payload = BatchPredictRequest(
+        urls=[
+            "https://example.com",
+            "https://example.org/login",
+        ]
+    )
 
+    response = endpoint(
+        payload,
+        request,
+    )
+
+    assert response.count == 2
+    assert len(response.predictions) == 2
+
+    assert response.predictions[0].model_version == MODEL_VERSION
+
+    assert response.predictions[1].model_version == MODEL_VERSION
+
+
+def test_empty_batch_rejected() -> None:
     with pytest.raises(
-        HTTPException,
-    ) as exc_info:
-        endpoint(
-            payload,
-            request,
-        )
+        ValidationError,
+    ):
+        BatchPredictRequest(urls=[])
 
-    assert exc_info.value.status_code == 422
+
+def test_batch_size_limit() -> None:
+    with pytest.raises(
+        ValidationError,
+    ):
+        BatchPredictRequest(urls=["https://example.com"] * (MAX_BATCH_SIZE + 1))
