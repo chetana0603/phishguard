@@ -35,3 +35,8 @@ artifacts/
 .idea/
 .DS_Store
 Thumbs.db
+
+/reports/models/tfidf_logistic/threshold_table.csv
+
+/data/external/raw/
+/data/external/processed/

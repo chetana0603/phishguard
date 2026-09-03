@@ -1,0 +1,64 @@
+{
+  "phase": "2C-A",
+  "locked_test_used": false,
+  "selected_phase2b_spec": {
+    "name": "char25_c10_bal_scheme_www_neutral",
+    "ngram_min": 2,
+    "ngram_max": 5,
+    "c": 1.0,
+    "class_weight": "balanced",
+    "min_df": 3,
+    "max_features": 250000,
+    "sublinear_tf": true,
+    "lowercase": false,
+    "scheme_neutral": true
+  },
+  "split": {
+    "training_rows": 141090,
+    "model_fit_rows": 112871,
+    "calibration_rows": 28219,
+    "validation_rows": 47030,
+    "model_fit_domains": 84287,
+    "calibration_domains": 21017,
+    "domain_overlap": 0
+  },
+  "comparison": [
+    {
+      "method": "isotonic",
+      "average_precision": 0.94059390676513,
+      "roc_auc": 0.9386508134107134,
+      "brier_score": 0.08130049308910538,
+      "log_loss": 0.2702759358376471,
+      "ece": 0.012686087234455164
+    },
+    {
+      "method": "sigmoid",
+      "average_precision": 0.943867800025217,
+      "roc_auc": 0.9389524640760698,
+      "brier_score": 0.08149185004936543,
+      "log_loss": 0.2728102185147189,
+      "ece": 0.020486475050595983
+    },
+    {
+      "method": "uncalibrated",
+      "average_precision": 0.943867800025217,
+      "roc_auc": 0.9389524640760698,
+      "brier_score": 0.08510378217686482,
+      "log_loss": 0.2884755594383454,
+      "ece": 0.053213344376439965
+    }
+  ],
+  "preferred_method": "sigmoid",
+  "selection_status": "preferred_pending_robustness",
+  "final_sigmoid_cv_metrics": {
+    "average_precision": 0.9454609708599456,
+    "roc_auc": 0.9406892281997168,
+    "brier_score": 0.08045838140457803,
+    "log_loss": 0.2679520837118946,
+    "ece": 0.023539975477811725
+  },
+  "final_training_rows": 141090,
+  "calibration_cv_folds": 5,
+  "calibration_cv_group": "registered_domain",
+  "calibration_cv_domain_leakage": 0
+}

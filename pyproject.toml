@@ -9,6 +9,7 @@ authors = [
   { name = "Chetana Vijayakumar" }
 ]
 dependencies = [
+  "fastapi>=0.141.1",
   "joblib>=1.5",
   "matplotlib>=3.9",
   "numpy>=2.0",
@@ -17,10 +18,12 @@ dependencies = [
   "scikit-learn>=1.5",
   "tldextract>=5.1",
   "ucimlrepo>=0.0.7",
+  "uvicorn>=0.52.4",
 ]
 
 [dependency-groups]
 dev = [
+  "httpx>=0.28.1",
   "pytest>=8.3",
   "pytest-cov>=5.0",
   "ruff>=0.6",

@@ -1,0 +1,67 @@
+{
+  "phase": "2C-C2",
+  "created_at_utc": "2026-08-18T17:33:45.871936+00:00",
+  "purpose": "Remove external/OOD registered-domain overlap with the locked internal test split before external model evaluation.",
+  "input_external_path": "data\\external\\processed\\external_ood_candidate.parquet",
+  "input_external_sha256": "a5414f8b7cd8a61d19fb80b82ee24d076610792ab736e758726232d987eabfbc",
+  "output_external_path": "data\\external\\processed\\external_ood_eval.parquet",
+  "output_external_sha256": "ca1837648400d60f59bc7939cc6194a7f8d39daf225affec175d309143c15671",
+  "locked_test_access": {
+    "registered_domain_column_loaded": true,
+    "raw_domain_values_persisted": false,
+    "url_column_loaded": false,
+    "target_column_loaded": false,
+    "other_feature_columns_loaded": false,
+    "model_loaded": false,
+    "predictions_generated": false,
+    "metrics_calculated": false,
+    "locked_test_scored": false
+  },
+  "locked_test_domain_guard": {
+    "test_rows": 47030,
+    "unique_test_domain_hashes": 35104,
+    "domain_hash_set_fingerprint": "5e1926b6759f284bab164e6d4f1b275ab89e1af67f4e828a26dab632bf938a33"
+  },
+  "external_before": {
+    "rows": 24400,
+    "target_counts": {
+      "0": 12200,
+      "1": 12200
+    },
+    "source_counts": {
+      "phishtank": 12200,
+      "tranco_benign_proxy": 12200
+    }
+  },
+  "overlap_removed": {
+    "rows": 577,
+    "target_counts": {
+      "0": 435,
+      "1": 142
+    },
+    "source_counts": {
+      "phishtank": 142,
+      "tranco_benign_proxy": 435
+    }
+  },
+  "external_after": {
+    "rows": 23823,
+    "target_counts": {
+      "0": 11765,
+      "1": 12058
+    },
+    "source_counts": {
+      "phishtank": 12058,
+      "tranco_benign_proxy": 11765
+    },
+    "phishing_rows": 12058,
+    "benign_proxy_rows": 11765,
+    "phishing_prevalence": 0.5061495193720355
+  },
+  "rebalance_after_filtering": false,
+  "reason_not_rebalanced": "All clean external examples are retained. Class-specific recall and false-positive rate will be reported separately during OOD evaluation.",
+  "raw_locked_test_domains_written_to_report": false,
+  "locked_test_labels_used": false,
+  "locked_test_urls_used": false,
+  "locked_test_scored": false
+}

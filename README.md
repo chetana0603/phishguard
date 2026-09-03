@@ -1,201 +1,774 @@
 # PhishGuard
 
-[![CI](https://github.com/chetana0603/phishguard/actions/workflows/ci.yml/badge.svg)](https://github.com/chetana0603/phishguard/actions/workflows/ci.yml)
+Leakage-aware and robustness-tested phishing URL detection using
+character-level TF-IDF and Logistic Regression.
 
-PhishGuard is a production-oriented phishing URL detection project focused on leakage-safe
-data preparation, calibrated risk scoring, explainable predictions, rigorous evaluation,
-monitoring, CI/CD, and cloud deployment.
+PhishGuard was built to explore a problem that is easy to underestimate:
+a phishing classifier can achieve extremely high held-out accuracy while
+still learning dataset-specific shortcuts or behaving unpredictably on
+equivalent URL representations.
 
-> **Current status:** Phase 2B — character-level TF-IDF and logistic-regression model
-> selection on the domain-held-out validation split. The locked test set remains untouched.
+The project therefore focuses not only on model performance, but also on:
 
-## Why this project exists
+- leakage-aware evaluation
+- dataset-bias discovery
+- probability calibration
+- operating-threshold selection
+- adversarial-style robustness checks
+- external/OOD validation
+- reproducible model freezing
+- tested inference serving
+- containerized deployment
 
-Many phishing classifiers report high scores using random row splits, which can place URLs from
-the same domain in both training and testing data. PhishGuard is designed to reduce this leakage
-risk by grouping examples by registrable domain before model development.
+---
 
-Version 1 is deliberately URL-only. It never opens or requests the URLs in the dataset.
+## Final Model
 
-## Phase 1 deliverables
+**Version:** `tfidf-logistic-v3-rootcanon`
 
-- Download UCI PhiUSIIL dataset 967 through code
-- Convert the target so phishing is the positive class
-- Normalise URLs conservatively for duplicate detection
-- Remove conflicting-label duplicates
-- Build public-suffix-aware domain groups
-- Generate a reproducible data-quality audit
-- Create deterministic 60/20/20 train, validation, and locked-test splits
-- Verify split integrity through unit tests and CI
+The final pipeline uses:
 
-## Repository structure
+```text
+URL
+ │
+ ▼
+URL normalization
+ │
+ ├── scheme neutralization
+ ├── leading www. neutralization
+ ├── hostname lowercase normalization
+ └── equivalent root-path canonicalization
+ │
+ ▼
+Character TF-IDF
+ │
+ ▼
+Logistic Regression
+ │
+ ▼
+5-fold domain-grouped sigmoid calibration
+ │
+ ▼
+Frozen threshold
+0.768113160039295
+ │
+ ▼
+Phishing probability + classification
+```
+
+The classifier is URL-only. It does not fetch or visit webpages.
+
+---
+
+## Key Results
+
+### Final Locked Test
+
+The final model was evaluated once on a locked **47,030-URL test set**
+after preprocessing, calibration, robustness rules, and the operating
+threshold had been frozen.
+
+| Metric | Result |
+|---|---:|
+| Precision | **97.35%** |
+| Recall / TPR | **73.51%** |
+| False-positive rate | **1.49%** |
+| F1 | **0.8377** |
+| ROC-AUC | **0.9394** |
+| Average Precision | **0.9424** |
+| Accuracy | **87.85%** |
+| ECE | **0.0259** |
+
+Confusion matrix:
+
+| | Predicted Phishing | Predicted Legitimate |
+|---|---:|---:|
+| Actual Phishing | 14,746 | 5,314 |
+| Actual Legitimate | 402 | 26,568 |
+
+The final test FPR remained below the validation operating limit of
+**1.63%**.
+
+---
+
+## Why the Project Is More Than a Classifier
+
+An early character TF-IDF model achieved almost perfect validation
+performance.
+
+Instead of treating that as the final result, feature inspection and
+ablation testing were used to determine what the model had actually
+learned.
+
+A strong shortcut was discovered:
+
+```text
+Legitimate URLs → strongly associated with HTTPS
+Phishing URLs   → frequently associated with HTTP
+```
+
+A protocol-only heuristic could already classify a substantial portion
+of the dataset.
+
+This indicated **dataset collection bias**, rather than purely useful
+phishing behaviour.
+
+The final model therefore neutralizes scheme information even though
+doing so reduces headline accuracy.
+
+---
+
+## Leakage-Aware Evaluation
+
+Random URL-level splitting can put highly related URLs from the same
+domain into both training and evaluation sets.
+
+PhishGuard instead groups examples by:
+
+```text
+registered_domain
+```
+
+before splitting.
+
+Final dataset sizes:
+
+| Split | Rows |
+|---|---:|
+| Train | 141,090 |
+| Validation | 47,030 |
+| Locked test | 47,030 |
+
+Registered-domain overlap between train, validation, and test partitions
+is prevented.
+
+---
+
+## Robustness Testing
+
+The model is tested against controlled transformations of the same URL.
+
+Strict invariance is required when the transformation should not change
+the meaning of the URL.
+
+| Transformation | Prediction Flip Rate |
+|---|---:|
+| HTTP ↔ HTTPS | **0.0000%** |
+| leading `www.` | **0.0000%** |
+| hostname case | **0.0000%** |
+| equivalent root `/` | **0.0000%** |
+
+These checks were not added only as unit tests.
+
+They were motivated by real model failures discovered during the
+experiments.
+
+---
+
+## A Robustness Failure That Changed the Model
+
+During an earlier external evaluation, the model behaved very
+differently for:
+
+```text
+https://example.com
+```
+
+and:
+
+```text
+https://example.com/
+```
+
+even though they represent the same HTTP root resource.
+
+The earlier model produced approximately:
+
+```text
+64.91% prediction flips
+```
+
+for this transformation on the external benign proxy.
+
+V3 introduced **root-only path canonicalization**.
+
+The fresh external evaluation then showed:
+
+```text
+Prediction flip rate: 0.0000%
+Mean score drift:     0.000000
+```
+
+Non-root paths remain distinct:
+
+```text
+example.com/login
+!=
+example.com/login/
+```
+
+because those resources are not guaranteed to be equivalent.
+
+---
+
+## External / OOD Evaluation
+
+After V3 was finalized, a fresh external snapshot was collected on
+**2026-09-03**.
+
+The evaluation used:
+
+- **12,934** verified-online PhishTank URLs
+- **12,594** Tranco popular-domain benign proxies
+- **25,528** examples total
+
+Development-domain overlap and locked-test-domain overlap were removed
+before model scoring.
+
+### External Results
+
+| Metric | Result |
+|---|---:|
+| PhishTank recall | **83.59%** |
+| Tranco benign-proxy FPR | **18.46%** |
+| ROC-AUC | **0.9012** |
+| Average Precision | **0.9167** |
+| ECE | **0.1369** |
+
+The model retained useful ranking and phishing recall, but calibration
+and benign-proxy performance degraded under distribution shift.
+
+### Important Interpretation
+
+The **18.46% Tranco result is not a deployment FPR**.
+
+Tranco popular domains are used as a benign stress-test proxy and are
+not representative of normal browsing traffic.
+
+The result instead demonstrates that strong internal test performance
+does not guarantee equivalent behaviour on a different URL distribution.
+
+---
+
+## Calibration
+
+The final model uses five-fold sigmoid calibration with
+`registered_domain` grouping.
+
+Validation probability metrics:
+
+| Metric | Result |
+|---|---:|
+| Brier score | 0.0872 |
+| Log loss | 0.2864 |
+| ECE | 0.0304 |
+
+Locked-test values remained similar:
+
+| Metric | Result |
+|---|---:|
+| Brier score | 0.0853 |
+| Log loss | 0.2826 |
+| ECE | 0.0259 |
+
+External ECE increased to **0.1369**, providing additional evidence of
+distribution shift.
+
+---
+
+## Evaluation Methodology
+
+The final evaluation sequence was:
+
+```text
+Dataset preparation
+        │
+        ▼
+Registered-domain grouped split
+        │
+        ▼
+Rule baseline
+        │
+        ▼
+TF-IDF + Logistic Regression
+        │
+        ▼
+Feature / bias analysis
+        │
+        ▼
+Scheme-neutral model
+        │
+        ▼
+Grouped probability calibration
+        │
+        ▼
+Robustness testing
+        │
+        ▼
+Representation defects discovered
+        │
+        ▼
+V3 root canonicalization
+        │
+        ▼
+Internal robustness PASS
+        │
+        ▼
+Fresh external/OOD evaluation
+        │
+        ▼
+Freeze manifest + artifact hashes
+        │
+        ▼
+Single locked-test evaluation
+```
+
+The locked test was not used for model selection or threshold tuning.
+
+---
+
+## Inference API
+
+The frozen V3 model is served through a FastAPI inference service.
+
+Available endpoints:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/health` | GET | Service health |
+| `/model` | GET | Frozen model metadata |
+| `/predict` | POST | Score one URL |
+| `/predict/batch` | POST | Score up to 100 URLs |
+| `/docs` | GET | Interactive OpenAPI documentation |
+
+The model is loaded once when the API starts and reused across requests.
+
+### Single Prediction
+
+Request:
+
+```json
+{
+  "url": "https://example.com"
+}
+```
+
+Example response:
+
+```json
+{
+  "url": "https://example.com",
+  "phishing_probability": 0.5044066778199805,
+  "prediction": 0,
+  "label": "legitimate",
+  "threshold": 0.768113160039295,
+  "model_version": "tfidf-logistic-v3-rootcanon"
+}
+```
+
+### Batch Prediction
+
+Request:
+
+```json
+{
+  "urls": [
+    "https://example.com",
+    "https://example.com/",
+    "http://www.example.com"
+  ]
+}
+```
+
+The batch endpoint uses the same vectorized model inference path and
+accepts up to 100 URLs per request.
+
+Equivalent root representations were verified to produce the same model
+score through the containerized API:
+
+```text
+https://example.com
+https://example.com/
+http://www.example.com
+```
+
+This confirms that the V3 representation-invariance behaviour is
+preserved after model serialization, API serving, and containerization.
+
+---
+
+## API Validation
+
+The inference layer includes automated tests for:
+
+- single-URL predictions
+- batch predictions
+- frozen threshold behaviour
+- model-version metadata
+- empty-input rejection
+- whitespace-only URL rejection
+- missing request fields
+- maximum batch size enforcement
+- health endpoint behaviour
+- model metadata endpoint behaviour
+
+The current automated test suite contains:
+
+```text
+92 passing tests
+```
+
+The API tests are designed to run without opening network sockets, while
+the actual HTTP service is validated separately through the Dockerized
+application.
+
+---
+
+## Docker
+
+The FastAPI service is packaged in a Linux Docker container.
+
+### Build
+
+The frozen model artifact must exist locally at:
+
+```text
+artifacts/models/calibration_v3_rootcanon/sigmoid_grouped_cv.joblib
+```
+
+Build the image:
+
+```bash
+docker build -t phishguard-api:v3 .
+```
+
+### Run
+
+```bash
+docker run --rm -p 8000:8000 phishguard-api:v3
+```
+
+The API is then available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Interactive API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Health Check
+
+The Docker image includes a container health check against:
+
+```text
+GET /health
+```
+
+A running container can be inspected with:
+
+```bash
+docker ps
+```
+
+or:
+
+```bash
+docker inspect --format='{{.State.Health.Status}}' phishguard-api
+```
+
+Expected status:
+
+```text
+healthy
+```
+
+### Containerized Inference Flow
+
+```text
+HTTP request
+      │
+      ▼
+FastAPI
+      │
+      ▼
+Pydantic validation
+      │
+      ▼
+PhishGuardPredictor
+      │
+      ▼
+Frozen V3 model
+      │
+      ▼
+Probability + classification
+      │
+      ▼
+JSON response
+```
+
+---
+
+## Model Artifact Handling
+
+The frozen `.joblib` model is intentionally excluded from normal Git
+tracking through `.gitignore`.
+
+Local Docker builds explicitly include the required frozen artifact in
+the image while excluding unrelated development artifacts.
+
+This keeps raw/model-development artifacts out of the repository while
+allowing the tested local container to run with the exact frozen V3
+model.
+
+A registry-based model/container distribution strategy can be used for
+cloud deployment.
+
+---
+
+## Reproducibility
+
+Frozen model:
+
+```text
+tfidf-logistic-v3-rootcanon
+```
+
+Frozen decision threshold:
+
+```text
+0.768113160039295
+```
+
+Model SHA-256:
+
+```text
+7df6dd6102d37f4d3358db5a7536b48395f1c1f610414e0d9c7c6fcb3463f058
+```
+
+Freeze commit:
+
+```text
+9198acad4f81016fba47d57ae74f434880a2d58b
+```
+
+Freeze environment:
+
+```text
+Python       3.11.15
+scikit-learn 1.9.0
+```
+
+Detailed freeze metadata is stored in:
+
+```text
+reports/models/final_v3_freeze_manifest.json
+```
+
+---
+
+## Project Structure
 
 ```text
 phishguard/
-├── data/                    # Generated locally; excluded from Git
-├── reports/                 # Generated audit and figures
-├── scripts/                 # Reproducible PowerShell workflows
+│
 ├── src/phishguard/
-│   ├── config.py
+│   ├── api/
+│   │   ├── app.py
+│   │   └── schemas.py
+│   │
+│   ├── inference/
+│   │   └── predictor.py
+│   │
 │   ├── data/
-│   │   ├── download.py
-│   │   ├── prepare.py
-│   │   ├── audit.py
-│   │   └── split.py
-│   ├── features/            # Phase 2
-│   └── evaluation/          # Phase 2
+│   │   ├── preparation
+│   │   ├── external OOD construction
+│   │   └── external decontamination
+│   │
+│   ├── models/
+│   │   └── TF-IDF Logistic Regression
+│   │
+│   ├── training/
+│   │   └── calibration
+│   │
+│   └── evaluation/
+│       ├── metrics
+│       ├── rule baseline
+│       ├── robustness
+│       └── external OOD evaluation
+│
+├── artifacts/
+│   └── models/
+│       └── frozen local model artifacts
+│
+├── scripts/
+│   ├── external snapshot preparation
+│   ├── freeze-manifest generation
+│   └── final locked-test evaluation
+│
+├── reports/
+│   └── evaluation artifacts and metrics
+│
 ├── tests/
+│   └── automated unit/integration tests
+│
+├── docs/
+│   ├── EXPERIMENT_LOG.md
+│   ├── MODEL_CARD.md
+│   └── FINAL_EVALUATION.md
+│
+├── Dockerfile
+├── .dockerignore
 ├── pyproject.toml
-└── uv.lock
+└── README.md
 ```
 
-## Dataset
+---
 
-The project uses the **PhiUSIIL Phishing URL (Website)** dataset from the UCI Machine Learning
-Repository, dataset ID 967.
+## Documentation
 
-The original labels are:
+For detailed methodology and results:
 
-- `1` = legitimate
-- `0` = phishing
+- [Experiment Log](docs/EXPERIMENT_LOG.md)
+- [Model Card](docs/MODEL_CARD.md)
+- [Final Evaluation](docs/FINAL_EVALUATION.md)
 
-PhishGuard converts them internally to:
+The experiment log contains the complete development history, including
+failed assumptions and model changes.
 
-- `1` = phishing
-- `0` = legitimate
+The model card describes intended use, limitations, bias, robustness,
+and evaluation methodology.
 
-The original dataset includes both URL-derived and webpage-source-derived variables. Phase 1
-keeps the raw download for reproducibility but creates a separate URL-only modelling table.
+The final evaluation document provides a concise summary of the frozen
+V3 results.
 
-## Setup
+---
 
-### Requirements
+## Development Setup
 
-- Python 3.11+
-- Git
-- uv
+This project uses Python and `uv`.
 
-Install uv if needed:
-
-```powershell
-py -m pip install uv
-```
-
-Create and synchronise the environment:
+Install dependencies:
 
 ```powershell
 uv sync
 ```
 
-The first successful sync creates or updates `uv.lock`. Commit that lockfile.
-
-## Run Phase 1
-
-Run each step separately:
+Run the test suite:
 
 ```powershell
-uv run python -m phishguard.data.download
-uv run python -m phishguard.data.prepare
-uv run python -m phishguard.data.audit
-uv run python -m phishguard.data.split
+uv run pytest -q
 ```
 
-Or run the complete workflow:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run_phase1.ps1
-```
-
-## Generated artefacts
-
-```text
-data/raw/phiusiil_raw.parquet
-data/raw/phiusiil_metadata.json
-data/interim/phiusiil_url_only.parquet
-data/interim/conflicting_labels.parquet
-data/interim/preparation_summary.json
-data/processed/train.parquet
-data/processed/validation.parquet
-data/processed/test.parquet
-data/processed/split_summary.json
-reports/data_audit.md
-reports/figures/*.png
-```
-
-Generated datasets are excluded from Git. The scripts and audit methodology remain reproducible.
-
-## Run Phase 2A
-
-The rule baseline is intentionally simple and explainable. It establishes the comparison point
-that statistical models must outperform; its additive score is not a calibrated probability.
-
-```powershell
-uv run python -m phishguard.evaluation.rule_baseline
-```
-
-Or run validation, tests, linting, and report generation together:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run_phase2a.ps1
-```
-## Run Phase 2B
-```powershell
-uv run python -m phishguard.training.tfidf_logistic
-```
-
-For the optional full 18-configuration search:
-
-```powershell
-uv run python -m phishguard.training.tfidf_logistic --full-grid
-```
-
-Generated outputs are written to `reports/baselines/rule_baseline/`. The locked test split is not
-used during threshold selection.
-
-
-```markdown
-- **Phase 1:** ✅ Reproducible data foundation
-- **Phase 2A:** 🚧 Transparent rule baseline
-- **Phase 2B:** Character-level TF-IDF logistic regression
-- **Phase 3:** Engineered URL features and boosted-tree model
-- **Phase 4:** Calibration, final threshold selection, and robustness evaluation
-- **Phase 5:** FastAPI service and web interface
-- **Phase 6:** Docker, model registry, monitoring, and cloud deployment
-- **Phase 7:** Optional browser extension```
-
-## Quality checks
+Run lint checks:
 
 ```powershell
 uv run ruff check .
-uv run ruff format --check .
-uv run pytest --cov=phishguard --cov-report=term-missing
 ```
 
-## Data-leakage controls
+Format Python code:
 
-- Exact and normalised duplicate handling before splitting
-- Conflicting labels removed and reported
-- Registrable-domain grouping using a public-suffix-aware extractor
-- No domain or normalised URL may cross split boundaries
-- Locked test split is not used for model selection
-- Deterministic random seed (`42`)
+```powershell
+uv run ruff format .
+```
 
-## Roadmap
+### Run the API without Docker
 
-- **Phase 1:** reproducible data foundation
-- **Phase 2:** rule baseline and character-level TF-IDF logistic regression
-- **Phase 3:** engineered URL features and boosted-tree model
-- **Phase 4:** calibration, threshold selection, and robustness evaluation
-- **Phase 5:** FastAPI service and web interface
-- **Phase 6:** Docker, model registry, monitoring, and cloud deployment
-- **Phase 7:** optional browser extension
+When local networking permits:
 
-## Safety
+```powershell
+uv run uvicorn phishguard.api.app:app --host 127.0.0.1 --port 8000
+```
 
-PhishGuard does not visit URLs during data preparation or Version 1 inference. Dataset URLs are
-handled as untrusted strings and should not be converted into clickable links.
+### Run with Docker
 
-## Licence
+```powershell
+docker build -t phishguard-api:v3 .
+docker run --rm -p 8000:8000 phishguard-api:v3
+```
 
-Project code is released under the MIT License. The dataset remains subject to its own UCI/CC BY
-4.0 terms and must be cited separately.
+---
+
+## Data
+
+The project uses the UCI PhiUSIIL phishing URL dataset for model
+development.
+
+External robustness evaluation uses snapshots derived from:
+
+- PhishTank
+- Tranco
+
+Raw external phishing feeds are not intended to be committed to the
+repository.
+
+Phishing URLs should always be treated as untrusted strings and should
+not be opened during evaluation.
+
+---
+
+## Limitations
+
+PhishGuard is deliberately a **URL-only model**.
+
+It does not use:
+
+- webpage content
+- redirects
+- DNS history
+- WHOIS information
+- TLS metadata
+- domain reputation
+- screenshots
+- user context
+- email context
+
+External evaluation also shows measurable distribution shift.
+
+A legitimate SaaS-style URL was also observed to receive a high phishing
+score during containerized smoke testing, providing a qualitative
+example of the same distribution-shift limitation identified during the
+external evaluation.
+
+The frozen V3 model was not modified in response to this observation.
+
+The model should therefore be treated as a screening/risk-scoring
+component rather than a complete phishing-defense system.
+
+Representative deployment traffic would be required before production
+use.
+
+---
+
+## Current Status
+
+**V3 model development, evaluation, and local productization are
+complete.**
+
+```text
+Model frozen:                  Yes
+Internal robustness:           Passed
+Fresh external evaluation:     Completed
+Locked test evaluated:         Yes
+Post-test threshold tuning:    No
+
+Inference wrapper:             Completed
+FastAPI service:               Completed
+Single prediction endpoint:    Completed
+Batch prediction endpoint:     Completed
+Automated tests:               92 passed
+Docker image build:            Completed
+Docker health check:           Passed
+Containerized HTTP inference:  Verified
+```
+
+The V3 test set is now consumed.
+
+Any future changes to preprocessing, model configuration, calibration,
+or threshold will be developed as a new model version.
+
+The next engineering step is deployment of the frozen container image
+through a container registry and hosted runtime.

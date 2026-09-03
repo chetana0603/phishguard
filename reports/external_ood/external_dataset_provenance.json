@@ -1,0 +1,53 @@
+{
+  "phase": "2C-C1",
+  "created_at_utc": "2026-08-18T15:30:23.195242+00:00",
+  "locked_test_used": false,
+  "locked_test_scored": false,
+  "train_validation_domains": 140405,
+  "tranco_list_id": "manual-20260818",
+  "max_per_class_requested": 30000,
+  "final_rows_per_class": 12200,
+  "final_total_rows": 24400,
+  "target_convention": {
+    "0": "Tranco popular-domain benign proxy",
+    "1": "PhishTank verified-online phishing URL"
+  },
+  "phishtank": {
+    "raw_rows": 72299,
+    "verified_online_rows": 72299,
+    "valid_domain_rows": 72299,
+    "development_domain_overlap_removed": 32042,
+    "duplicate_domain_rows_removed": 28057,
+    "selected_rows": 12200
+  },
+  "tranco": {
+    "raw_rows": 1000000,
+    "valid_domain_rows": 1000000,
+    "development_domain_overlap_removed": 35066,
+    "phishtank_domain_conflicts_removed": 696,
+    "selected_rows": 12200
+  },
+  "source_metadata": {
+    "acquisition": "manual_browser",
+    "reason": "Python outbound socket blocked by WinError 10013"
+  },
+  "input_files": {
+    "phishtank": {
+      "path": "data\\external\\raw\\phishtank_online_valid.csv",
+      "sha256": "07b0b053b58ecba0a619cc98f8740e025674632844e73991628e8d4c5494d49b"
+    },
+    "tranco": {
+      "path": "data\\external\\raw\\tranco_top1m.csv",
+      "sha256": "86bf4095231e7e2ddc5538ed3862034b521656eb90a6c35b0523ebf181d51672"
+    }
+  },
+  "output_path": "data\\external\\processed\\external_ood_candidate.parquet",
+  "output_sha256": "a5414f8b7cd8a61d19fb80b82ee24d076610792ab736e758726232d987eabfbc",
+  "limitations": [
+    "Tranco is a popular-domain proxy, not perfect benign ground truth.",
+    "Tranco examples are synthesized as https://<domain> root URLs.",
+    "Only one PhishTank URL per registered domain is retained.",
+    "The combined class balance is constructed for diagnostic evaluation and does not represent deployment prevalence.",
+    "The locked internal test set has not been scored or used for model decisions."
+  ]
+}
