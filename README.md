@@ -17,6 +17,8 @@ The project therefore focuses not only on model performance, but also on:
 - adversarial-style robustness checks
 - external/OOD validation
 - reproducible model freezing
+- tested inference serving
+- containerized deployment
 
 ---
 
@@ -62,9 +64,9 @@ The classifier is URL-only. It does not fetch or visit webpages.
 
 ### Final Locked Test
 
-The final model was evaluated once on a locked
-**47,030-URL test set** after preprocessing, calibration, robustness
-rules, and the operating threshold had been frozen.
+The final model was evaluated once on a locked **47,030-URL test set**
+after preprocessing, calibration, robustness rules, and the operating
+threshold had been frozen.
 
 | Metric | Result |
 |---|---:|
@@ -244,8 +246,7 @@ Tranco popular domains are used as a benign stress-test proxy and are
 not representative of normal browsing traffic.
 
 The result instead demonstrates that strong internal test performance
-does not guarantee equivalent behaviour on a different URL
-distribution.
+does not guarantee equivalent behaviour on a different URL distribution.
 
 ---
 
@@ -326,6 +327,208 @@ The locked test was not used for model selection or threshold tuning.
 
 ---
 
+## Inference API
+
+The frozen V3 model is served through a FastAPI inference service.
+
+Available endpoints:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/health` | GET | Service health |
+| `/model` | GET | Frozen model metadata |
+| `/predict` | POST | Score one URL |
+| `/predict/batch` | POST | Score up to 100 URLs |
+| `/docs` | GET | Interactive OpenAPI documentation |
+
+The model is loaded once when the API starts and reused across requests.
+
+### Single Prediction
+
+Request:
+
+```json
+{
+  "url": "https://example.com"
+}
+```
+
+Example response:
+
+```json
+{
+  "url": "https://example.com",
+  "phishing_probability": 0.5044066778199805,
+  "prediction": 0,
+  "label": "legitimate",
+  "threshold": 0.768113160039295,
+  "model_version": "tfidf-logistic-v3-rootcanon"
+}
+```
+
+### Batch Prediction
+
+Request:
+
+```json
+{
+  "urls": [
+    "https://example.com",
+    "https://example.com/",
+    "http://www.example.com"
+  ]
+}
+```
+
+The batch endpoint uses the same vectorized model inference path and
+accepts up to 100 URLs per request.
+
+Equivalent root representations were verified to produce the same model
+score through the containerized API:
+
+```text
+https://example.com
+https://example.com/
+http://www.example.com
+```
+
+This confirms that the V3 representation-invariance behaviour is
+preserved after model serialization, API serving, and containerization.
+
+---
+
+## API Validation
+
+The inference layer includes automated tests for:
+
+- single-URL predictions
+- batch predictions
+- frozen threshold behaviour
+- model-version metadata
+- empty-input rejection
+- whitespace-only URL rejection
+- missing request fields
+- maximum batch size enforcement
+- health endpoint behaviour
+- model metadata endpoint behaviour
+
+The current automated test suite contains:
+
+```text
+92 passing tests
+```
+
+The API tests are designed to run without opening network sockets, while
+the actual HTTP service is validated separately through the Dockerized
+application.
+
+---
+
+## Docker
+
+The FastAPI service is packaged in a Linux Docker container.
+
+### Build
+
+The frozen model artifact must exist locally at:
+
+```text
+artifacts/models/calibration_v3_rootcanon/sigmoid_grouped_cv.joblib
+```
+
+Build the image:
+
+```bash
+docker build -t phishguard-api:v3 .
+```
+
+### Run
+
+```bash
+docker run --rm -p 8000:8000 phishguard-api:v3
+```
+
+The API is then available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Interactive API documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Health Check
+
+The Docker image includes a container health check against:
+
+```text
+GET /health
+```
+
+A running container can be inspected with:
+
+```bash
+docker ps
+```
+
+or:
+
+```bash
+docker inspect --format='{{.State.Health.Status}}' phishguard-api
+```
+
+Expected status:
+
+```text
+healthy
+```
+
+### Containerized Inference Flow
+
+```text
+HTTP request
+      │
+      ▼
+FastAPI
+      │
+      ▼
+Pydantic validation
+      │
+      ▼
+PhishGuardPredictor
+      │
+      ▼
+Frozen V3 model
+      │
+      ▼
+Probability + classification
+      │
+      ▼
+JSON response
+```
+
+---
+
+## Model Artifact Handling
+
+The frozen `.joblib` model is intentionally excluded from normal Git
+tracking through `.gitignore`.
+
+Local Docker builds explicitly include the required frozen artifact in
+the image while excluding unrelated development artifacts.
+
+This keeps raw/model-development artifacts out of the repository while
+allowing the tested local container to run with the exact frozen V3
+model.
+
+A registry-based model/container distribution strategy can be used for
+cloud deployment.
+
+---
+
 ## Reproducibility
 
 Frozen model:
@@ -373,6 +576,13 @@ reports/models/final_v3_freeze_manifest.json
 phishguard/
 │
 ├── src/phishguard/
+│   ├── api/
+│   │   ├── app.py
+│   │   └── schemas.py
+│   │
+│   ├── inference/
+│   │   └── predictor.py
+│   │
 │   ├── data/
 │   │   ├── preparation
 │   │   ├── external OOD construction
@@ -390,6 +600,10 @@ phishguard/
 │       ├── robustness
 │       └── external OOD evaluation
 │
+├── artifacts/
+│   └── models/
+│       └── frozen local model artifacts
+│
 ├── scripts/
 │   ├── external snapshot preparation
 │   ├── freeze-manifest generation
@@ -401,10 +615,15 @@ phishguard/
 ├── tests/
 │   └── automated unit/integration tests
 │
-└── docs/
-    ├── EXPERIMENT_LOG.md
-    ├── MODEL_CARD.md
-    └── FINAL_EVALUATION.md
+├── docs/
+│   ├── EXPERIMENT_LOG.md
+│   ├── MODEL_CARD.md
+│   └── FINAL_EVALUATION.md
+│
+├── Dockerfile
+├── .dockerignore
+├── pyproject.toml
+└── README.md
 ```
 
 ---
@@ -456,6 +675,21 @@ Format Python code:
 uv run ruff format .
 ```
 
+### Run the API without Docker
+
+When local networking permits:
+
+```powershell
+uv run uvicorn phishguard.api.app:app --host 127.0.0.1 --port 8000
+```
+
+### Run with Docker
+
+```powershell
+docker build -t phishguard-api:v3 .
+docker run --rm -p 8000:8000 phishguard-api:v3
+```
+
 ---
 
 ## Data
@@ -494,6 +728,13 @@ It does not use:
 
 External evaluation also shows measurable distribution shift.
 
+A legitimate SaaS-style URL was also observed to receive a high phishing
+score during containerized smoke testing, providing a qualitative
+example of the same distribution-shift limitation identified during the
+external evaluation.
+
+The frozen V3 model was not modified in response to this observation.
+
 The model should therefore be treated as a screening/risk-scoring
 component rather than a complete phishing-defense system.
 
@@ -504,17 +745,30 @@ use.
 
 ## Current Status
 
-**V3 model development and evaluation are complete.**
+**V3 model development, evaluation, and local productization are
+complete.**
 
 ```text
-Model frozen:              Yes
-Internal robustness:       Passed
-Fresh external evaluation: Completed
-Locked test evaluated:     Yes
-Post-test threshold tuning: No
+Model frozen:                  Yes
+Internal robustness:           Passed
+Fresh external evaluation:     Completed
+Locked test evaluated:         Yes
+Post-test threshold tuning:    No
+
+Inference wrapper:             Completed
+FastAPI service:               Completed
+Single prediction endpoint:    Completed
+Batch prediction endpoint:     Completed
+Automated tests:               92 passed
+Docker image build:            Completed
+Docker health check:           Passed
+Containerized HTTP inference:  Verified
 ```
 
 The V3 test set is now consumed.
 
 Any future changes to preprocessing, model configuration, calibration,
 or threshold will be developed as a new model version.
+
+The next engineering step is deployment of the frozen container image
+through a container registry and hosted runtime.
