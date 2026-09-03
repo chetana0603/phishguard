@@ -19,15 +19,13 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 
-from phishguard.data.external_decontamination import (
-    EXTERNAL_EVAL_PATH,
-)
+DEFAULT_EXTERNAL_PATH = Path("data/external/processed/external_ood_eval_v3_20260903.parquet")
 
-DEFAULT_MODEL_PATH = Path("artifacts/models/calibration_v2_hostcanon/sigmoid_grouped_cv.joblib")
+DEFAULT_MODEL_PATH = Path("artifacts/models/calibration_v3_rootcanon/sigmoid_grouped_cv.joblib")
 
-DEFAULT_REPORT_DIR = Path("reports/models/external_ood_v2_hostcanon")
+DEFAULT_REPORT_DIR = Path("reports/models/external_ood_v3_rootcanon_20260903")
 
-FROZEN_THRESHOLD = 0.697774
+FROZEN_THRESHOLD = 0.768113160039295
 
 ECE_BINS = 15
 
@@ -283,7 +281,7 @@ def _root_slash_diagnostic(
 
 def evaluate_external_ood(
     *,
-    external_path: Path = EXTERNAL_EVAL_PATH,
+    external_path: Path = DEFAULT_EXTERNAL_PATH,
     model_path: Path = DEFAULT_MODEL_PATH,
     report_dir: Path = DEFAULT_REPORT_DIR,
     threshold: float = FROZEN_THRESHOLD,
@@ -444,12 +442,12 @@ def evaluate_external_ood(
             "path": str(model_path),
             "sha256": (_sha256_file(model_path)),
             "calibration": ("group-aware 5-fold sigmoid"),
-            "model_version": ("tfidf-logistic-v2"),
+            "model_version": ("tfidf-logistic-v3-rootcanon"),
         },
         "decision_threshold": {
             "value": float(threshold),
             "frozen_before_external_evaluation": True,
-            "source": ("Phase 2C-B validation threshold matched to rule-baseline FPR"),
+            "source": ("Phase 2C-D2 V3 validation threshold matched to rule-baseline FPR"),
             "tuned_on_external_data": False,
         },
         "external_dataset": {
@@ -612,7 +610,7 @@ def main() -> None:
     parser.add_argument(
         "--external-path",
         type=Path,
-        default=EXTERNAL_EVAL_PATH,
+        default=DEFAULT_EXTERNAL_PATH,
     )
 
     parser.add_argument(
