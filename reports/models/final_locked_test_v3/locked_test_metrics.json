@@ -1,0 +1,38 @@
+{
+  "evaluation": "final_locked_test_v3",
+  "model_version": "tfidf-logistic-v3-rootcanon",
+  "freeze_git_commit": "9198acad4f81016fba47d57ae74f434880a2d58b",
+  "evaluation_git_commit": "ca6bf160f073dbc7e33a5619c490d59dd39987a5",
+  "freeze_manifest_path": "reports\\models\\final_v3_freeze_manifest.json",
+  "freeze_manifest_sha256": "a705f18b69a53e078131778033c8de83e2bd6912a8cf58dfb21d74e150b8e4b6",
+  "test_path": "data\\processed\\test.parquet",
+  "test_rows": 47030,
+  "decision_threshold": 0.768113160039295,
+  "threshold_metrics": {
+    "threshold": 0.768113160039295,
+    "true_positive": 14746,
+    "false_negative": 5314,
+    "true_negative": 26568,
+    "false_positive": 402,
+    "accuracy": 0.8784605570912184,
+    "precision": 0.9734618431476102,
+    "recall": 0.7350947158524427,
+    "false_positive_rate": 0.014905450500556174,
+    "specificity": 0.9850945494994439,
+    "f1": 0.8376505339695525
+  },
+  "probability_metrics": {
+    "average_precision": 0.9423876132922433,
+    "roc_auc": 0.9394217310988799,
+    "brier_score": 0.08525369540660388,
+    "log_loss": 0.2825933928409459,
+    "ece": 0.025872891213947445
+  },
+  "locked_test_scored": true,
+  "post_test_policy": {
+    "model_retraining_allowed": false,
+    "recalibration_allowed": false,
+    "threshold_retuning_allowed": false,
+    "preprocessing_changes_allowed": false
+  }
+}
