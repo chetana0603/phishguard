@@ -1,0 +1,7 @@
+perturbation,expected_invariant,invariance_passed,applicable_rows,applicability_rate,mean_absolute_drift,median_absolute_drift,p95_absolute_drift,max_absolute_drift,mean_signed_drift,flip_count,flip_rate,predicted_legitimate_to_phishing,predicted_phishing_to_legitimate,legitimate_row_flip_rate,phishing_row_flip_rate
+scheme_toggle,True,True,47030,1.0,0.0,0.0,0.0,0.0,0.0,0,0.0,0,0,0.0,0.0
+www_toggle,True,True,47030,1.0,0.0,0.0,0.0,0.0,0.0,0,0.0,0,0,0.0,0.0
+host_case,True,True,46894,0.9971082287901339,0.0,0.0,0.0,0.0,0.0,0,0.0,0,0,0.0,0.0
+root_slash,True,True,41774,0.8882415479481183,0.0,0.0,0.0,0.0,0.0,0,0.0,0,0,0.0,0.0
+non_root_trailing_slash,False,,5256,0.11175845205188177,0.00513565494135998,0.00020753171374732204,0.025323057708729085,0.39753023232269386,0.0015550194310146397,39,0.007420091324200913,28,11,0.0,0.007420091324200913
+query_order,False,,420,0.008930469912821603,0.00040189758765760906,1.3574684910755419e-05,0.0011227227575903375,0.028581648396420745,-0.00019957498974670123,1,0.002380952380952381,0,1,0.0,0.002380952380952381

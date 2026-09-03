@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
+from urllib.parse import urlsplit, urlunsplit
 
 import numpy as np
 import pandas as pd
@@ -13,20 +14,135 @@ from sklearn.pipeline import Pipeline
 
 from phishguard.config import RANDOM_STATE
 
-TFIDF_LOGISTIC_VERSION = "tfidf-logistic-v1"
+TFIDF_LOGISTIC_VERSION = "tfidf-logistic-v2"
 
 # Module-level constants
-_SCHEME_RE = re.compile(r"^https?://", flags=re.IGNORECASE)
-_LEADING_WWW_RE = re.compile(r"^www\.", flags=re.IGNORECASE)
+_SCHEME_RE = re.compile(
+    r"^https?://",
+    flags=re.IGNORECASE,
+)
 
 
-# Module-level function
-def normalize_url_for_text_model(value: object) -> str:
-    """Remove protocol and leading-www shortcuts from a URL string."""
+def _canonicalize_netloc(
+    netloc: str,
+    hostname: str,
+) -> str:
+    """Lowercase hostname while preserving userinfo and port."""
+    user_info = ""
+
+    if "@" in netloc:
+        user_info, host_port = netloc.rsplit(
+            "@",
+            1,
+        )
+        user_info += "@"
+
+    else:
+        host_port = netloc
+
+    # Preserve IPv6 brackets and any port suffix.
+    if host_port.startswith("["):
+        closing = host_port.find("]")
+
+        if closing != -1:
+            host = host_port[: closing + 1].lower()
+
+            suffix = host_port[closing + 1 :]
+
+            return f"{user_info}{host}{suffix}"
+
+    host = hostname.lower()
+
+    if host.startswith("www."):
+        host = host[4:]
+
+    suffix = ""
+
+    if ":" in host_port:
+        _, separator, candidate_port = host_port.rpartition(":")
+
+        if separator and candidate_port.isdigit():
+            suffix = f":{candidate_port}"
+
+    return f"{user_info}{host}{suffix}"
+
+
+def _canonicalize_root_path(
+    path: str,
+) -> str:
+    """
+    Canonicalize only the HTTP(S) root-path representation.
+
+    An empty path and "/" are treated identically.
+
+    Non-root trailing slashes are deliberately preserved:
+    "/login" and "/login/" remain different strings.
+    """
+    if path == "/":
+        return ""
+
+    return path
+
+
+def normalize_url_for_text_model(
+    value: object,
+) -> str:
+    """
+    Canonicalize URL text for the character TF-IDF model.
+
+    The transformation:
+    - removes HTTP/HTTPS scheme;
+    - removes a leading www from the hostname;
+    - lowercases only the hostname;
+    - treats an empty root path and "/" identically;
+    - preserves non-root path/query/fragment casing;
+    - preserves non-root trailing slashes.
+    """
     text = str(value).strip()
-    text = _SCHEME_RE.sub("", text)
-    text = _LEADING_WWW_RE.sub("", text)
-    return text
+
+    if not text:
+        return text
+
+    scheme_neutral = _SCHEME_RE.sub(
+        "",
+        text,
+    )
+
+    try:
+        parsed = urlsplit(f"//{scheme_neutral}")
+
+    except ValueError:
+        return scheme_neutral
+
+    hostname = parsed.hostname
+
+    if not parsed.netloc or not hostname:
+        return scheme_neutral
+
+    canonical_netloc = _canonicalize_netloc(
+        parsed.netloc,
+        hostname,
+    )
+
+    canonical_path = _canonicalize_root_path(parsed.path)
+
+    canonical = urlunsplit(
+        (
+            "",
+            canonical_netloc,
+            canonical_path,
+            parsed.query,
+            parsed.fragment,
+        )
+    )
+
+    if canonical.startswith("//"):
+        canonical = canonical[2:]
+
+    return canonical
+
+
+TFIDF_LOGISTIC_VERSION = "tfidf-logistic-v3"
 
 
 @dataclass(frozen=True)

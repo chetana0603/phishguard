@@ -1,0 +1,145 @@
+{
+  "phase": "2C-C3",
+  "created_at_utc": "2026-08-18T17:45:01.534755+00:00",
+  "evaluation_type": "frozen external/OOD evaluation",
+  "model": {
+    "path": "artifacts\\models\\calibration_v2_hostcanon\\sigmoid_grouped_cv.joblib",
+    "sha256": "04ab3c7d9d359253c988e1f4536f98eb48334658061c7208acff0b59b4d18fd9",
+    "calibration": "group-aware 5-fold sigmoid",
+    "model_version": "tfidf-logistic-v2"
+  },
+  "decision_threshold": {
+    "value": 0.697774,
+    "frozen_before_external_evaluation": true,
+    "source": "Phase 2C-B validation threshold matched to rule-baseline FPR",
+    "tuned_on_external_data": false
+  },
+  "external_dataset": {
+    "path": "data\\external\\processed\\external_ood_eval.parquet",
+    "sha256": "ca1837648400d60f59bc7939cc6194a7f8d39daf225affec175d309143c15671",
+    "rows": 23823,
+    "phishing_rows": 12058,
+    "benign_proxy_rows": 11765,
+    "constructed_phishing_prevalence": 0.5061495193720355
+  },
+  "ranking_metrics": {
+    "average_precision": 0.9534093385120801,
+    "roc_auc": 0.9464634842911478
+  },
+  "threshold_metrics": {
+    "threshold": 0.697774,
+    "true_positive": 11144,
+    "false_negative": 914,
+    "true_negative": 9555,
+    "false_positive": 2210,
+    "recall_tpr": 0.9241997014430253,
+    "false_negative_rate": 0.07580029855697468,
+    "false_positive_rate": 0.1878453038674033,
+    "specificity": 0.8121546961325967,
+    "precision": 0.8345065149019021,
+    "f1": 0.8770659530930269,
+    "accuracy": 0.8688662217185074
+  },
+  "probability_metrics": {
+    "brier_score": 0.1254213967963016,
+    "log_loss": 0.4051453388717957,
+    "ece": 0.13830551231880364
+  },
+  "source_specific_metrics": {
+    "phishtank": {
+      "rows": 12058,
+      "recall_tpr": 0.9241997014430253,
+      "false_negative_rate": 0.07580029855697468,
+      "score_quantiles": {
+        "min": 0.015253997268675037,
+        "p05": 0.4606937641279464,
+        "p25": 0.9572401197955652,
+        "median": 0.9906035359613933,
+        "p75": 0.9982095212607931,
+        "p95": 0.9998818539805728,
+        "max": 0.9999999941515638,
+        "mean": 0.9260411982992597
+      }
+    },
+    "tranco_benign_proxy": {
+      "rows": 11765,
+      "false_positive_rate": 0.1878453038674033,
+      "specificity": 0.8121546961325967,
+      "score_quantiles": {
+        "min": 6.908502952964244e-05,
+        "p05": 0.019228957313176642,
+        "p25": 0.10411150952609739,
+        "median": 0.25428453415713287,
+        "p75": 0.5771047831580082,
+        "p95": 0.9446920655874607,
+        "max": 0.9995059689595402,
+        "mean": 0.3558561369212397
+      }
+    }
+  },
+  "tranco_root_slash_sensitivity": {
+    "rows": 11765,
+    "mean_absolute_drift": 0.508172356422347,
+    "median_absolute_drift": 0.5384227991771781,
+    "p95_absolute_drift": 0.9184951029071731,
+    "max_absolute_drift": 0.9890937612214055,
+    "flip_count": 7637,
+    "flip_rate": 0.6491287717807055,
+    "baseline_fpr": 0.1878453038674033,
+    "with_root_slash_fpr": 0.8369740756481088,
+    "fpr_change": 0.6491287717807055,
+    "interpretation": "Sensitivity diagnostic only. Tranco supplies domains, not observed URL paths; adding '/' changes the synthesized representation and is not used for primary OOD metrics."
+  },
+  "score_quantiles": {
+    "overall": {
+      "min": 6.908502952964244e-05,
+      "p05": 0.041568192626554853,
+      "p25": 0.23779389843782245,
+      "median": 0.8502876926278493,
+      "p75": 0.9912168702218758,
+      "p95": 0.9996774226601282,
+      "max": 0.9999999941515638,
+      "mean": 0.6444550316908392
+    },
+    "phishing": {
+      "min": 0.015253997268675037,
+      "p05": 0.4606937641279464,
+      "p25": 0.9572401197955652,
+      "median": 0.9906035359613933,
+      "p75": 0.9982095212607931,
+      "p95": 0.9998818539805728,
+      "max": 0.9999999941515638,
+      "mean": 0.9260411982992597
+    },
+    "benign_proxy": {
+      "min": 6.908502952964244e-05,
+      "p05": 0.019228957313176642,
+      "p25": 0.10411150952609739,
+      "median": 0.25428453415713287,
+      "p75": 0.5771047831580082,
+      "p95": 0.9446920655874607,
+      "max": 0.9995059689595402,
+      "mean": 0.3558561369212397
+    }
+  },
+  "locked_test": {
+    "loaded_during_c3": false,
+    "urls_loaded_during_c3": false,
+    "labels_loaded_during_c3": false,
+    "predictions_generated_during_c3": false,
+    "scored_during_c3": false
+  },
+  "external_data_policy": {
+    "retraining_after_results": false,
+    "recalibration_after_results": false,
+    "threshold_retuning_after_results": false
+  },
+  "interpretation_notes": [
+    "PhishTank recall and Tranco false-positive rate are the primary source-specific OOD metrics.",
+    "Precision and average precision depend on the constructed external class prevalence and should not be interpreted as deployment prevalence metrics.",
+    "Tranco is a popular-domain benign proxy rather than definitive benign URL ground truth.",
+    "Tranco URLs were synthesized as https://<domain> without a trailing slash.",
+    "Root-slash sensitivity is reported separately and does not alter primary OOD results.",
+    "The external snapshot is evaluation-only. No model, calibration, or threshold changes are made after observing these results."
+  ]
+}

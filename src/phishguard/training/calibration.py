@@ -47,8 +47,15 @@ def expected_calibration_error(
     if n_bins < 2:
         raise ValueError("n_bins must be at least 2.")
 
-    targets = np.asarray(targets, dtype=float)
-    probabilities = np.asarray(probabilities, dtype=float)
+    targets = np.asarray(
+        targets,
+        dtype=float,
+    )
+
+    probabilities = np.asarray(
+        probabilities,
+        dtype=float,
+    )
 
     if targets.shape != probabilities.shape:
         raise ValueError("targets and probabilities must have the same shape.")
@@ -92,7 +99,10 @@ def _positive_class_scores(
     urls: pd.Series,
 ) -> np.ndarray:
     """Return probabilities assigned to phishing class 1."""
-    probabilities = estimator.predict_proba(urls)
+    probabilities = np.asarray(
+        estimator.predict_proba(urls),
+        dtype=float,
+    )
 
     classes = np.asarray(estimator.classes_)
 
@@ -101,15 +111,16 @@ def _positive_class_scores(
     if len(phishing_indices) != 1:
         raise ValueError("Expected exactly one phishing class labelled 1.")
 
-    phishing_index = int(phishing_indices[0])
-
-    return probabilities[:, phishing_index].astype(float)
+    return probabilities[
+        :,
+        int(phishing_indices[0]),
+    ].astype(float)
 
 
 def _load_selected_spec(
     metrics_path: Path = PHASE2B_METRICS_PATH,
 ) -> TfidfLogisticSpec:
-    """Load the Phase 2B selected model configuration."""
+    """Load the selected TF-IDF model configuration."""
     if not metrics_path.exists():
         raise FileNotFoundError(f"Phase 2B metrics not found at {metrics_path}.")
 
@@ -131,12 +142,13 @@ def _load_selected_spec(
     return spec
 
 
-def _validate_required_columns(
+def _grouped_fit_calibration_split(
     frame: pd.DataFrame,
-    *,
-    frame_name: str,
-) -> None:
-    """Ensure a frame contains all columns needed by Phase 2C."""
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+]:
+    """Create an approximately 80/20 grouped calibration split."""
     required = {
         "url_model_input",
         "target",
@@ -146,30 +158,7 @@ def _validate_required_columns(
     missing = required.difference(frame.columns)
 
     if missing:
-        raise ValueError(f"{frame_name} data missing required columns: {sorted(missing)}")
-
-    if frame.empty:
-        raise ValueError(f"{frame_name} data is empty.")
-
-    targets = set(frame["target"].dropna().astype(int))
-
-    if targets != {0, 1}:
-        raise ValueError(f"{frame_name} target must contain both classes 0 and 1.")
-
-
-def _grouped_fit_calibration_split(
-    frame: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Create approximately 80/20 model-fit/calibration partitions.
-
-    Registered domains are kept entirely within one side
-    of the split.
-    """
-    _validate_required_columns(
-        frame,
-        frame_name="Training",
-    )
+        raise ValueError(f"Training data missing required columns: {sorted(missing)}")
 
     targets = frame["target"].to_numpy(dtype=np.int8)
 
@@ -201,9 +190,7 @@ def _grouped_fit_calibration_split(
 
     if overlap:
         raise RuntimeError(
-            "Domain leakage detected across "
-            "model-fit/calibration split: "
-            f"{len(overlap)} overlapping domains."
+            f"Domain leakage detected across calibration split: {len(overlap)} overlapping domains."
         )
 
     if fit_frame["target"].nunique() != 2:
@@ -220,34 +207,30 @@ def _grouped_fit_calibration_split(
 
 def _grouped_cv_splits(
     frame: pd.DataFrame,
-    *,
-    n_splits: int = 5,
 ) -> list[
     tuple[
         np.ndarray,
         np.ndarray,
     ]
 ]:
-    """
-    Build deterministic registered-domain-disjoint CV folds.
+    """Create deterministic registered-domain-disjoint CV splits."""
+    required = {
+        "url_model_input",
+        "target",
+        "registered_domain",
+    }
 
-    Every registered domain remains in exactly one validation
-    fold and cannot appear in the corresponding training fold.
-    """
-    _validate_required_columns(
-        frame,
-        frame_name="Training",
-    )
+    missing = required.difference(frame.columns)
 
-    if n_splits < 2:
-        raise ValueError("n_splits must be at least 2.")
+    if missing:
+        raise ValueError(f"Training data missing required columns: {sorted(missing)}")
 
     targets = frame["target"].to_numpy(dtype=np.int8)
 
     groups = frame["registered_domain"].astype(str).to_numpy()
 
     splitter = StratifiedGroupKFold(
-        n_splits=n_splits,
+        n_splits=5,
         shuffle=True,
         random_state=RANDOM_STATE,
     )
@@ -260,42 +243,29 @@ def _grouped_cv_splits(
         )
     )
 
-    if len(splits) != n_splits:
-        raise RuntimeError("Unexpected number of cross-validation folds.")
+    for train_indices, calibration_indices in splits:
+        train_domains = set(groups[train_indices])
 
-    for fold_number, (
-        train_indices,
-        calibration_indices,
-    ) in enumerate(
-        splits,
-        start=1,
-    ):
-        train_groups = set(groups[train_indices])
+        calibration_domains = set(groups[calibration_indices])
 
-        calibration_groups = set(groups[calibration_indices])
-
-        overlap = train_groups.intersection(calibration_groups)
+        overlap = train_domains.intersection(calibration_domains)
 
         if overlap:
             raise RuntimeError(
-                f"Registered-domain leakage "
-                f"detected in CV fold {fold_number}: "
+                "Domain leakage detected across grouped "
+                "calibration CV: "
                 f"{len(overlap)} overlapping domains."
             )
 
-        train_targets = set(targets[train_indices])
+        train_targets = targets[train_indices]
 
-        calibration_targets = set(targets[calibration_indices])
+        calibration_targets = targets[calibration_indices]
 
-        if train_targets != {0, 1}:
-            raise RuntimeError(
-                f"CV fold {fold_number} training partition does not contain both classes."
-            )
+        if np.unique(train_targets).size != 2:
+            raise RuntimeError("Grouped-CV training fold does not contain both classes.")
 
-        if calibration_targets != {0, 1}:
-            raise RuntimeError(
-                f"CV fold {fold_number} calibration partition does not contain both classes."
-            )
+        if np.unique(calibration_targets).size != 2:
+            raise RuntimeError("Grouped-CV calibration fold does not contain both classes.")
 
     return splits
 
@@ -328,7 +298,10 @@ def _calibration_metrics(
             log_loss(
                 targets,
                 scores,
-                labels=[0, 1],
+                labels=[
+                    0,
+                    1,
+                ],
             )
         ),
         "ece": expected_calibration_error(
@@ -346,15 +319,24 @@ def _save_reliability_curve(
         np.ndarray,
     ],
     output_path: Path,
-    *,
-    title: str,
 ) -> None:
     """Save validation reliability curves."""
-    figure, axis = plt.subplots(figsize=(7, 6))
+    figure, axis = plt.subplots(
+        figsize=(
+            7,
+            6,
+        )
+    )
 
     axis.plot(
-        [0.0, 1.0],
-        [0.0, 1.0],
+        [
+            0.0,
+            1.0,
+        ],
+        [
+            0.0,
+            1.0,
+        ],
         linestyle="--",
         label="Perfect calibration",
     )
@@ -378,7 +360,7 @@ def _save_reliability_curve(
 
     axis.set_ylabel("Observed phishing frequency")
 
-    axis.set_title(title)
+    axis.set_title("Phase 2C-A Validation Reliability")
 
     axis.legend()
 
@@ -397,110 +379,17 @@ def _save_reliability_curve(
     plt.close(figure)
 
 
-def _render_report(
-    payload: dict[str, object],
-) -> str:
-    """Create a compact Phase 2C-A Markdown report."""
-    split = payload["split"]
-    comparison = payload["comparison"]
-    final_metrics = payload["final_sigmoid_cv_metrics"]
-
-    assert isinstance(
-        split,
-        dict,
-    )
-
-    assert isinstance(
-        comparison,
-        list,
-    )
-
-    assert isinstance(
-        final_metrics,
-        dict,
-    )
-
-    lines = [
-        "# Phase 2C-A — Probability Calibration",
-        "",
-        "## Data policy",
-        "",
-        f"- Training rows: **{split['training_rows']:,}**",
-        (f"- Initial calibration comparison model-fit rows: **{split['model_fit_rows']:,}**"),
-        (f"- Initial calibration comparison calibration rows: **{split['calibration_rows']:,}**"),
-        f"- Validation rows: **{split['validation_rows']:,}**",
-        "- Registered-domain overlap: **0**",
-        "- Locked test used: **False**",
-        "",
-        "## Initial calibration comparison",
-        "",
-        ("| Method | AP | ROC AUC | Brier | Log loss | ECE |"),
-        "|---|---:|---:|---:|---:|---:|",
-    ]
-
-    for row in comparison:
-        assert isinstance(
-            row,
-            dict,
-        )
-
-        lines.append(
-            "| "
-            f"{row['method']} | "
-            f"{row['average_precision']:.4f} | "
-            f"{row['roc_auc']:.4f} | "
-            f"{row['brier_score']:.5f} | "
-            f"{row['log_loss']:.5f} | "
-            f"{row['ece']:.5f} |"
-        )
-
-    lines.extend(
-        [
-            "",
-            "## Preferred calibration method",
-            "",
-            "- Method: **sigmoid**",
-            ("- Status: **preferred pending Phase 2C-B robustness testing**"),
-            ("- Calibration uses five registered-domain-disjoint folds."),
-            (
-                "- With `ensemble=False`, the final "
-                "underlying classifier is fitted on "
-                "the complete training split."
-            ),
-            "",
-            "### Grouped-CV sigmoid validation metrics",
-            "",
-            (f"- Average precision: **{final_metrics['average_precision']:.4f}**"),
-            (f"- ROC AUC: **{final_metrics['roc_auc']:.4f}**"),
-            (f"- Brier score: **{final_metrics['brier_score']:.5f}**"),
-            (f"- Log loss: **{final_metrics['log_loss']:.5f}**"),
-            (f"- ECE: **{final_metrics['ece']:.5f}**"),
-            "",
-            "## Guardrails",
-            "",
-            ("- The Phase 2B scheme/www-neutral TF-IDF Logistic Regression model is used."),
-            ("- Registered domains cannot cross model-fit/calibration or CV fold boundaries."),
-            "- The locked test set remains untouched.",
-            ("- Sigmoid remains provisional until Phase 2C-B robustness evaluation."),
-            "",
-        ]
-    )
-
-    return "\n".join(lines)
-
-
 def run_calibration_experiment(
     *,
+    metrics_path: Path = PHASE2B_METRICS_PATH,
     train_path: Path = TRAIN_DATA_PATH,
     validation_path: Path = VALIDATION_DATA_PATH,
     report_dir: Path = CALIBRATION_REPORT_DIR,
     artifact_dir: Path = CALIBRATION_ARTIFACT_DIR,
 ) -> dict[str, object]:
     """
-    Compare uncalibrated, sigmoid, and isotonic calibration.
-
-    Then build a grouped-CV sigmoid candidate using all available
-    training rows for the final base estimator.
+    Compare calibration approaches and build the grouped-CV
+    sigmoid candidate used for robustness evaluation.
     """
     report_dir.mkdir(
         parents=True,
@@ -522,27 +411,9 @@ def run_calibration_experiment(
 
     validation_frame = pd.read_parquet(validation_path)
 
-    _validate_required_columns(
-        train_frame,
-        frame_name="Training",
-    )
+    spec = _load_selected_spec(metrics_path)
 
-    _validate_required_columns(
-        validation_frame,
-        frame_name="Validation",
-    )
-
-    spec = _load_selected_spec()
-
-    # ---------------------------------------------------------
-    # Part 1:
-    # Clean held-out calibration comparison.
-    # ---------------------------------------------------------
-
-    (
-        fit_frame,
-        calibration_frame,
-    ) = _grouped_fit_calibration_split(train_frame)
+    fit_frame, calibration_frame = _grouped_fit_calibration_split(train_frame)
 
     fit_urls = fit_frame["url_model_input"].astype(str)
 
@@ -556,8 +427,11 @@ def run_calibration_experiment(
 
     validation_targets = validation_frame["target"].to_numpy(dtype=np.int8)
 
-    # Fit Phase 2B scheme-neutral base model only
-    # on the model-fit partition.
+    # ---------------------------------------------------------
+    # Stage 1:
+    # Diagnostic 80/20 grouped holdout calibration comparison.
+    # ---------------------------------------------------------
+
     base_pipeline = build_pipeline(spec)
 
     base_pipeline.fit(
@@ -584,9 +458,6 @@ def run_calibration_experiment(
         "uncalibrated": (uncalibrated_scores),
     }
 
-    # Both calibrators receive the exact same
-    # pre-fitted base classifier and disjoint
-    # calibration partition.
     for method in (
         "sigmoid",
         "isotonic",
@@ -612,10 +483,7 @@ def run_calibration_experiment(
 
     rows: list[dict[str, object]] = []
 
-    for (
-        method,
-        scores,
-    ) in score_sets.items():
+    for method, scores in score_sets.items():
         metrics = _calibration_metrics(
             validation_targets,
             scores,
@@ -630,8 +498,6 @@ def run_calibration_experiment(
 
     comparison = pd.DataFrame(rows)
 
-    # Primary calibration metrics are losses:
-    # lower Brier/log-loss/ECE is better.
     comparison = comparison.sort_values(
         by=[
             "brier_score",
@@ -654,10 +520,30 @@ def run_calibration_experiment(
         validation_targets,
         score_sets,
         report_dir / "reliability_curve.png",
-        title=("Phase 2C-A Validation Calibration Comparison"),
     )
 
-    # Keep these models for auditability.
+    split_summary = {
+        "training_rows": int(len(train_frame)),
+        "model_fit_rows": int(len(fit_frame)),
+        "calibration_rows": int(len(calibration_frame)),
+        "validation_rows": int(len(validation_frame)),
+        "model_fit_domains": int(fit_frame["registered_domain"].nunique()),
+        "calibration_domains": int(calibration_frame["registered_domain"].nunique()),
+        "domain_overlap": 0,
+    }
+
+    payload: dict[
+        str,
+        object,
+    ] = {
+        "phase": "2C-A",
+        "locked_test_used": False,
+        "selected_phase2b_spec": (spec.to_dict()),
+        "split": split_summary,
+        "comparison": comparison.to_dict(orient="records"),
+        "selection_status": ("pending_grouped_cv"),
+    }
+
     joblib.dump(
         estimators["sigmoid"],
         artifact_dir / "sigmoid_calibrated.joblib",
@@ -670,19 +556,38 @@ def run_calibration_experiment(
         compress=3,
     )
 
+    print()
+    print("Phase 2C-A calibration comparison")
+    print("=" * 50)
+    print(comparison.to_string(index=False))
+    print()
+
+    print(
+        f"Model-fit rows: "
+        f"{len(fit_frame):,} | "
+        f"Calibration rows: "
+        f"{len(calibration_frame):,} | "
+        f"Validation rows: "
+        f"{len(validation_frame):,}"
+    )
+
+    print("Registered-domain overlap: 0")
+
+    print("Locked test used: False")
+
     # ---------------------------------------------------------
-    # Part 2:
-    # Preferred grouped-CV sigmoid candidate.
+    # Stage 2:
+    # Final 5-fold grouped-CV sigmoid calibration.
     #
-    # Cross-validated predictions train the calibrator.
-    # ensemble=False then gives us one final base classifier
-    # trained on the complete training split.
+    # Sigmoid is kept as the predetermined method from V2.
+    # V3 is not selecting a new calibration method from the
+    # external/OOD results.
     # ---------------------------------------------------------
 
-    cv_splits = _grouped_cv_splits(
-        train_frame,
-        n_splits=5,
-    )
+    print()
+    print("Training grouped-CV sigmoid candidate...")
+
+    cv_splits = _grouped_cv_splits(train_frame)
 
     final_sigmoid = CalibratedClassifierCV(
         estimator=build_pipeline(spec),
@@ -707,56 +612,25 @@ def run_calibration_experiment(
         final_sigmoid_scores,
     )
 
-    _save_reliability_curve(
-        validation_targets,
-        {
-            "grouped_cv_sigmoid": (final_sigmoid_scores),
-        },
-        report_dir / "grouped_cv_sigmoid_reliability_curve.png",
-        title=("Phase 2C-A Grouped-CV Sigmoid Reliability"),
-    )
+    payload["preferred_method"] = "sigmoid"
+
+    payload["selection_status"] = "preferred_pending_robustness"
+
+    payload["final_sigmoid_cv_metrics"] = final_sigmoid_metrics
+
+    payload["final_training_rows"] = int(len(train_frame))
+
+    payload["calibration_cv_folds"] = 5
+
+    payload["calibration_cv_group"] = "registered_domain"
+
+    payload["locked_test_used"] = False
 
     joblib.dump(
         final_sigmoid,
         artifact_dir / "sigmoid_grouped_cv.joblib",
         compress=3,
     )
-
-    # ---------------------------------------------------------
-    # Persist final Phase 2C-A metadata only AFTER
-    # grouped-CV calibration has been evaluated.
-    # ---------------------------------------------------------
-
-    split_summary: dict[
-        str,
-        object,
-    ] = {
-        "training_rows": int(len(train_frame)),
-        "model_fit_rows": int(len(fit_frame)),
-        "calibration_rows": int(len(calibration_frame)),
-        "validation_rows": int(len(validation_frame)),
-        "model_fit_domains": int(fit_frame["registered_domain"].nunique()),
-        "calibration_domains": int(calibration_frame["registered_domain"].nunique()),
-        "domain_overlap": 0,
-    }
-
-    payload: dict[
-        str,
-        object,
-    ] = {
-        "phase": "2C-A",
-        "locked_test_used": False,
-        "selected_phase2b_spec": (spec.to_dict()),
-        "split": split_summary,
-        "comparison": (comparison.to_dict(orient="records")),
-        "preferred_method": "sigmoid",
-        "selection_status": ("preferred_pending_robustness"),
-        "final_sigmoid_cv_metrics": (final_sigmoid_metrics),
-        "final_training_rows": int(len(train_frame)),
-        "calibration_cv_folds": 5,
-        "calibration_cv_group": ("registered_domain"),
-        "calibration_cv_domain_leakage": 0,
-    }
 
     (report_dir / "calibration_metrics.json").write_text(
         json.dumps(
@@ -766,53 +640,11 @@ def run_calibration_experiment(
         encoding="utf-8",
     )
 
-    (artifact_dir / "model_metadata.json").write_text(
-        json.dumps(
-            payload,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
-
-    (report_dir / "report.md").write_text(
-        _render_report(payload),
-        encoding="utf-8",
-    )
-
-    # ---------------------------------------------------------
-    # Console summary.
-    # ---------------------------------------------------------
-
     print()
-    print("Phase 2C-A calibration comparison")
-    print("=" * 50)
-    print(comparison.to_string(index=False))
-
-    print()
-
-    print(
-        f"Model-fit rows: "
-        f"{len(fit_frame):,} | "
-        f"Calibration rows: "
-        f"{len(calibration_frame):,} | "
-        f"Validation rows: "
-        f"{len(validation_frame):,}"
-    )
-
-    print("Registered-domain overlap: 0")
-
-    print("Locked test used: False")
-
-    print()
-
     print("Grouped-CV sigmoid candidate")
-
     print("=" * 50)
 
-    for (
-        metric,
-        value,
-    ) in final_sigmoid_metrics.items():
+    for metric, value in final_sigmoid_metrics.items():
         print(f"{metric}: {value:.6f}")
 
     print(f"Final base-model training rows: {len(train_frame):,}")
@@ -821,17 +653,13 @@ def run_calibration_experiment(
 
     print("Group: registered_domain")
 
-    print("Registered-domain leakage: 0")
-
-    print("Preferred method: sigmoid (pending robustness testing)")
-
     print("Locked test used: False")
 
     return payload
 
 
 def main() -> None:
-    """Run Phase 2C-A calibration."""
+    """Run the default calibration experiment."""
     run_calibration_experiment()
 
 
